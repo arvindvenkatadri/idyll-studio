@@ -8,6 +8,7 @@ const request = require('request-promise-native');
 const urljoin = require('url-join');
 const IDYLL_PUB_API = 'https://api.idyll.pub';
 const compile = require('idyll-compiler');
+const sqlite = require('sqlite3').verbose();
 
 class Main {
   constructor(electronObjects) {
@@ -38,6 +39,14 @@ class Main {
         this.idyll.build(this.workingDir);
         this.mainWindow.webContents.send('publishing', `Publishing...`);
         this.publish();
+      }
+    });
+
+    this.db = new sqlite.Database(':memory:', err => {
+      if (err) {
+        consoole.error(err.message);
+      } else {
+        console.log('Connected to db!');
       }
     });
   }
