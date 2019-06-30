@@ -10,6 +10,10 @@ const IDYLL_PUB_API = 'https://api.idyll.pub';
 const compile = require('idyll-compiler');
 const sqlite = require('sqlite3').verbose();
 
+const testDBPath = '../db/test.db'; // dummy value for now
+const testExist = fs.existsSync(testDBPath);
+const TOKEN_PATH = '/.idyll/token';
+
 class Main {
   constructor(electronObjects) {
     this.mainWindow = electronObjects.win;
@@ -30,6 +34,7 @@ class Main {
     // Deploy methods
     this.publish = this.publish.bind(this);
     this.getProjectToken = this.getProjectToken.bind(this);
+    this.establishDB = this.establishDB.bind(this);
 
     // Set up deploy connection
     // Deploying command
@@ -39,14 +44,6 @@ class Main {
         this.idyll.build(this.workingDir);
         this.mainWindow.webContents.send('publishing', `Publishing...`);
         this.publish();
-      }
-    });
-
-    this.db = new sqlite.Database(':memory:', err => {
-      if (err) {
-        consoole.error(err.message);
-      } else {
-        console.log('Connected to db!');
       }
     });
   }
@@ -116,6 +113,8 @@ class Main {
         }
       }
     );
+
+    this.establishDB();
 
     // Accepts a file path
     const fileContent = fs.readFileSync(file).toString();
@@ -216,6 +215,49 @@ class Main {
     }
     console.log('token: ' + token);
     return token;
+  }
+
+  establishDB() {
+    // Set up database connection
+    this.db = new sqlite.Database(testDBPath, err => {
+      if (err) {
+        console.error(err.message);
+      } else {
+        console.log('Connected to db!');
+        if (!testExist) {
+          console.log('Creating a new database');
+          let sql =
+            'CREATE TABLE projects(path text PRIMARY KEY,' +
+            'token text, URL text)';
+          this.db.run(sql);
+        }
+
+        let tokenFilePath = this.workingDir + TOKEN_PATH;
+        if (fs.existsSync(tokenFilePath)) {
+          let token = fs.readFileSync(tokenFilePath).toString();
+          // if it exists in database just select it and send it over to renderer
+          let sql = 'SELECT * FROM projects WHERE token = ?;';
+          this.db.get(sql, [token], (err, row) => {
+            if (err) {
+              console.log('ERROR!');
+            } else {
+              console.log(row);
+            }
+          });
+          // if it doesn't -> TODO
+        }
+
+        // if a token exists for current file
+
+        // Select the token from the current file
+        // Match it to database
+        // Send it over to renderer
+        // Info needed: Project name/path, token, URL
+
+        // On renderer side when published, send url to main
+        // and create a new entry
+      }
+    });
   }
 }
 
